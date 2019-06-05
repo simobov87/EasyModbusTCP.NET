@@ -3,7 +3,8 @@ This is a fork of the popular EasyModbusTCP.NET library by Rossmann-Engineering.
 Support for RTU over TCP was added. It's experimental at the time of writing, and it supports only FC03.<br>
 <br>
 RTU over TCP uses the same packet as standard Serial Modbus RTU, but in a TCP/IP environment. <br>
-It's useful when you have old equipment with no Ethernet/WiFi but only serial interface. Additional hardware is required, such as Serial-To-Ethernet converters. Standard ModbusTCP to ModbusRTU hardware converters can be expensive.<br>
+It's useful when you have old equipment with no Ethernet/WiFi but only serial interface. Additional hardware is required, such as Serial-To-Ethernet converters. <br>
+Standard ModbusTCP to ModbusRTU hardware converters can be expensive. Low cost Serial-To-Eth converter can be used with this added feature of this library<br>
 
 
 
