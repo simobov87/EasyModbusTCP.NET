@@ -94,6 +94,7 @@ namespace EasyModbusClientExample
             this.txtBaudrate = new System.Windows.Forms.TextBox();
             this.lblBaudrate = new System.Windows.Forms.Label();
             this.txtConnectedStatus = new System.Windows.Forms.TextBox();
+            this.buttonNew = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -229,7 +230,8 @@ namespace EasyModbusClientExample
             this.cbbSelctionModbus.FormattingEnabled = true;
             this.cbbSelctionModbus.Items.AddRange(new object[] {
             "ModbusTCP (Ethernet)",
-            "ModbusRTU (Serial)"});
+            "ModbusRTU (Serial)",
+            "ModbusRTUoverTCP (Ethernet)"});
             this.cbbSelctionModbus.Location = new System.Drawing.Point(34, 6);
             this.cbbSelctionModbus.Name = "cbbSelctionModbus";
             this.cbbSelctionModbus.Size = new System.Drawing.Size(180, 21);
@@ -565,11 +567,22 @@ namespace EasyModbusClientExample
             this.txtConnectedStatus.TabIndex = 54;
             this.txtConnectedStatus.Text = "Not connected to Server";
             // 
+            // buttonNew
+            // 
+            this.buttonNew.Location = new System.Drawing.Point(223, 6);
+            this.buttonNew.Name = "buttonNew";
+            this.buttonNew.Size = new System.Drawing.Size(75, 23);
+            this.buttonNew.TabIndex = 55;
+            this.buttonNew.Text = "New";
+            this.buttonNew.UseVisualStyleBackColor = true;
+            this.buttonNew.Click += new System.EventHandler(this.ButtonNew_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(669, 702);
+            this.Controls.Add(this.buttonNew);
             this.Controls.Add(this.txtConnectedStatus);
             this.Controls.Add(this.txtBaudrate);
             this.Controls.Add(this.lblBaudrate);
@@ -658,5 +671,6 @@ namespace EasyModbusClientExample
         private System.Windows.Forms.TextBox txtBaudrate;
         private System.Windows.Forms.Label lblBaudrate;
         private System.Windows.Forms.TextBox txtConnectedStatus;
+        private System.Windows.Forms.Button buttonNew;
     }
 }

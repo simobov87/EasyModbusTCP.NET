@@ -22,11 +22,8 @@ namespace EasyModbusClientExample
 			// The InitializeComponent() call is required for Windows Forms designer support.
 			//
 			InitializeComponent();
-            
-			modbusClient = new EasyModbus.ModbusClient();
-            modbusClient.ReceiveDataChanged += new EasyModbus.ModbusClient.ReceiveDataChangedHandler(UpdateReceiveData);
-            modbusClient.SendDataChanged += new EasyModbus.ModbusClient.SendDataChangedHandler(UpdateSendData);
-            modbusClient.ConnectedChanged += new EasyModbus.ModbusClient.ConnectedChangedHandler(UpdateConnectedChanged);
+
+            modbusClient = new EasyModbus.ModbusClient();
             //          modbusClient.LogFileFilename = "logFiletxt.txt";
 
             //modbusClient.Baudrate = 9600;
@@ -184,7 +181,7 @@ namespace EasyModbusClientExample
             if (modbusClient.Connected)
                 modbusClient.Disconnect();
 
-            if (cbbSelctionModbus.SelectedIndex == 0)
+            if (cbbSelctionModbus.SelectedIndex == 0 || cbbSelctionModbus.SelectedIndex == 2)
             {
                 
                 txtIpAddress.Visible = true;
@@ -419,7 +416,7 @@ namespace EasyModbusClientExample
             {
                 if (modbusClient.Connected)
                     modbusClient.Disconnect();
-                if (cbbSelctionModbus.SelectedIndex == 0)
+                if (cbbSelctionModbus.SelectedIndex == 0 || cbbSelctionModbus.SelectedIndex == 2)
                 {
                    
 
@@ -489,5 +486,25 @@ namespace EasyModbusClientExample
           
         }
 
+        private void ButtonNew_Click(object sender, EventArgs e)
+        {
+            if(modbusClient != null)
+            {
+                modbusClient.Disconnect();
+                modbusClient = null;
+            }
+            if (cbbSelctionModbus.SelectedIndex == 0 || cbbSelctionModbus.SelectedIndex == 2)
+            {
+                modbusClient = new EasyModbus.ModbusClient(txtIpAddressInput.Text, int.Parse(txtPortInput.Text), cbbSelctionModbus.SelectedIndex == 2);
+            }
+            else
+            {
+                modbusClient = new EasyModbus.ModbusClient();
+            }
+            modbusClient.ReceiveDataChanged += new EasyModbus.ModbusClient.ReceiveDataChangedHandler(UpdateReceiveData);
+            modbusClient.SendDataChanged += new EasyModbus.ModbusClient.SendDataChangedHandler(UpdateSendData);
+            modbusClient.ConnectedChanged += new EasyModbus.ModbusClient.ConnectedChangedHandler(UpdateConnectedChanged);
+            
+        }
     }
 }

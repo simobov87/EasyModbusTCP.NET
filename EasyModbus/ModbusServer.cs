@@ -277,6 +277,7 @@ namespace EasyModbus
         private int numberOfConnections = 0;
         private bool udpFlag;
         private bool serialFlag;
+        private bool serialOverTcpFlag;
         private int baudrate = 9600;
         private System.IO.Ports.Parity parity = Parity.Even;
         private System.IO.Ports.StopBits stopBits = StopBits.One;
@@ -505,7 +506,7 @@ namespace EasyModbus
                     byte[] byteData = new byte[2];
                     receiveDataThread.timeStamp = DateTime.Now;
                     receiveDataThread.request = true;
-                    if (!serialFlag)
+                    if (!serialFlag && !serialOverTcpFlag)
                     {
                         //Lese Transaction identifier
                         byteData[1] = bytes[0];
@@ -527,25 +528,25 @@ namespace EasyModbus
                     }
 
                     //Lese unit identifier
-                    receiveDataThread.unitIdentifier = bytes[6 - 6 * Convert.ToInt32(serialFlag)];
+                    receiveDataThread.unitIdentifier = bytes[6 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                     //Check UnitIdentifier
                     if ((receiveDataThread.unitIdentifier != this.unitIdentifier) & (receiveDataThread.unitIdentifier != 0))
                         return;
 
                     // Lese function code
-                    receiveDataThread.functionCode = bytes[7 - 6 * Convert.ToInt32(serialFlag)];
+                    receiveDataThread.functionCode = bytes[7 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
 
                     // Lese starting address 
-                    byteData[1] = bytes[8 - 6 * Convert.ToInt32(serialFlag)];
-                    byteData[0] = bytes[9 - 6 * Convert.ToInt32(serialFlag)];
+                    byteData[1] = bytes[8 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                    byteData[0] = bytes[9 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                     Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                     receiveDataThread.startingAdress = wordData[0];
 
                     if (receiveDataThread.functionCode <= 4)
                     {
                         // Lese quantity
-                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                         receiveDataThread.quantity = wordData[0];
                     }
@@ -553,27 +554,27 @@ namespace EasyModbus
                     {
                         receiveDataThread.receiveCoilValues = new ushort[1];
                         // Lese Value
-                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, receiveDataThread.receiveCoilValues, 0, 2);
                     }
                     if (receiveDataThread.functionCode == 6)
                     {
                         receiveDataThread.receiveRegisterValues = new ushort[1];
                         // Lese Value
-                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, receiveDataThread.receiveRegisterValues, 0, 2);
                     }
                     if (receiveDataThread.functionCode == 15)
                     {
                         // Lese quantity
-                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                         receiveDataThread.quantity = wordData[0];
 
-                        receiveDataThread.byteCount = bytes[12 - 6 * Convert.ToInt32(serialFlag)];
+                        receiveDataThread.byteCount = bytes[12 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
 
                         if ((receiveDataThread.byteCount % 2) != 0)
                             receiveDataThread.receiveCoilValues = new ushort[receiveDataThread.byteCount / 2 + 1];
@@ -585,18 +586,18 @@ namespace EasyModbus
                     if (receiveDataThread.functionCode == 16)
                     {
                         // Lese quantity
-                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                         receiveDataThread.quantity = wordData[0];
 
-                        receiveDataThread.byteCount = bytes[12 - 6 * Convert.ToInt32(serialFlag)];
+                        receiveDataThread.byteCount = bytes[12 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         receiveDataThread.receiveRegisterValues = new ushort[receiveDataThread.quantity];
                         for (int i = 0; i < receiveDataThread.quantity; i++)
                         {
                             // Lese Value
-                            byteData[1] = bytes[13 + i * 2 - 6 * Convert.ToInt32(serialFlag)];
-                            byteData[0] = bytes[14 + i * 2 - 6 * Convert.ToInt32(serialFlag)];
+                            byteData[1] = bytes[13 + i * 2 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                            byteData[0] = bytes[14 + i * 2 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                             Buffer.BlockCopy(byteData, 0, receiveDataThread.receiveRegisterValues, i * 2, 2);
                         }
 
@@ -604,33 +605,33 @@ namespace EasyModbus
                     if (receiveDataThread.functionCode == 23)
                     {
                         // Lese starting Address Read
-                        byteData[1] = bytes[8 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[9 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[8 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[9 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                         receiveDataThread.startingAddressRead = wordData[0];
                         // Lese quantity Read
-                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[10 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[11 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                         receiveDataThread.quantityRead = wordData[0];
                         // Lese starting Address Write
-                        byteData[1] = bytes[12 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[13 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[12 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[13 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                         receiveDataThread.startingAddressWrite = wordData[0];
                         // Lese quantity Write
-                        byteData[1] = bytes[14 - 6 * Convert.ToInt32(serialFlag)];
-                        byteData[0] = bytes[15 - 6 * Convert.ToInt32(serialFlag)];
+                        byteData[1] = bytes[14 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                        byteData[0] = bytes[15 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         Buffer.BlockCopy(byteData, 0, wordData, 0, 2);
                         receiveDataThread.quantityWrite = wordData[0];
 
-                        receiveDataThread.byteCount = bytes[16 - 6 * Convert.ToInt32(serialFlag)];
+                        receiveDataThread.byteCount = bytes[16 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                         receiveDataThread.receiveRegisterValues = new ushort[receiveDataThread.quantityWrite];
                         for (int i = 0; i < receiveDataThread.quantityWrite; i++)
                         {
                             // Lese Value
-                            byteData[1] = bytes[17 + i * 2 - 6 * Convert.ToInt32(serialFlag)];
-                            byteData[0] = bytes[18 + i * 2 - 6 * Convert.ToInt32(serialFlag)];
+                            byteData[1] = bytes[17 + i * 2 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
+                            byteData[0] = bytes[18 + i * 2 - 6 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                             Buffer.BlockCopy(byteData, 0, receiveDataThread.receiveRegisterValues, i * 2, 2);
                         }
                     }
@@ -805,9 +806,9 @@ namespace EasyModbus
                 Byte[] data;
 
                 if (sendData.exceptionCode > 0)
-                	data = new byte[9 + 2*Convert.ToInt32(serialFlag)];
+                	data = new byte[9 + 2*Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                   	data = new byte[9 + sendData.byteCount+ 2*Convert.ToInt32(serialFlag)];
+                   	data = new byte[9 + sendData.byteCount+ 2*Convert.ToInt32(serialFlag | serialOverTcpFlag)];
               
                 Byte[] byteData = new byte[2];
 
@@ -931,9 +932,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 Byte[] byteData = new byte[2];
                 sendData.length = (byte)(data.Length - 6);
 
@@ -1059,9 +1060,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 Byte[] byteData = new byte[2];
                 sendData.length = (byte)(data.Length - 6);
 
@@ -1132,7 +1133,18 @@ namespace EasyModbus
                     }
                     else
                     {
-                        stream.Write(data, 0, data.Length);
+                        if (serialOverTcpFlag)
+                        {    //Create CRC
+                            sendData.crc = ModbusClient.calculateCRC(data, Convert.ToUInt16(data.Length - 8), 6);
+                            byteData = BitConverter.GetBytes((int)sendData.crc);
+                            data[data.Length - 2] = byteData[0];
+                            data[data.Length - 1] = byteData[1];
+                            stream.Write(data, 6, data.Length - 6);
+                        }
+
+                        if (!serialOverTcpFlag) stream.Write(data, 0, data.Length);
+                        
+
                         if (debug) StoreLogData.Instance.Store("Send Data: " + BitConverter.ToString(data), System.DateTime.Now);
                     }
                 }
@@ -1174,9 +1186,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 Byte[] byteData = new byte[2];
                 sendData.length = (byte)(data.Length - 6);
 
@@ -1300,9 +1312,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
 
                 Byte[] byteData = new byte[2];
                 sendData.length = (byte)(data.Length - 6);
@@ -1422,9 +1434,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
 
                 Byte[] byteData = new byte[2];
                 sendData.length = (byte)(data.Length - 6);
@@ -1563,9 +1575,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
 
                 Byte[] byteData = new byte[2];
                 sendData.length = (byte)(data.Length - 6);
@@ -1687,9 +1699,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[12 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
 
                 Byte[] byteData = new byte[2];
                 sendData.length = (byte)(data.Length - 6);
@@ -1815,9 +1827,9 @@ namespace EasyModbus
             {
                 Byte[] data;
                 if (sendData.exceptionCode > 0)
-                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                 else
-                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag)];
+                    data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
 
                 Byte[] byteData = new byte[2];
 
@@ -1924,9 +1936,9 @@ namespace EasyModbus
              {
                  Byte[] data;
                  if (sendData.exceptionCode > 0)
-                     data = new byte[9 + 2 * Convert.ToInt32(serialFlag)];
+                     data = new byte[9 + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                  else
-                     data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag)];
+                     data = new byte[9 + sendData.byteCount + 2 * Convert.ToInt32(serialFlag | serialOverTcpFlag)];
                  Byte[] byteData = new byte[2];
                  sendData.length = (byte)(data.Length - 6);
 
@@ -2056,6 +2068,18 @@ namespace EasyModbus
  				serialFlag = value;
  			}
  		}
+
+        public bool SerialOverTcpFlag
+        {
+            get
+            {
+                return serialOverTcpFlag;
+            }
+            set
+            {
+                serialOverTcpFlag = value;
+            }
+        }
 
         public int Baudrate
         {

@@ -55,6 +55,7 @@ namespace EasyModbus
         private Parity parity = Parity.Even;
         private StopBits stopBits = StopBits.One;
         private bool connected = false;
+        private bool useRtuPacketOverTcp = false;
         public int NumberOfRetries { get; set; } = 3;
         private int countRetries = 0;
 
@@ -68,13 +69,34 @@ namespace EasyModbus
         public event ConnectedChangedHandler ConnectedChanged;
 
         NetworkStream stream;
-		
-		/// <summary>
-		/// Constructor which determines the Master ip-address and the Master Port.
-		/// </summary>
-		/// <param name="ipAddress">IP-Address of the Master device</param>
-		/// <param name="port">Listening port of the Master device (should be 502)</param>
-		public ModbusClient(string ipAddress, int port)
+
+        /// <summary>
+        /// Constructor which determines the Converter ip-address and the Converter Port for RTU over TCP (Alternative to ModbusTCP)
+        /// Using this method, requires additional hardware, like an RS232-to-LAN converter. 
+        /// You can use this method to access remote devices that don't support ModbusTCP.
+        /// MASTER --- RS232-TO-LAN ------ ETH CABLE ------- LAN-TO-RS232 ---- SLAVE
+        /// </summary>
+        /// <param name="ipAddress">IP-Address of the converter device</param>
+        /// <param name="port">Listening port of the converter device</param>
+        public ModbusClient(string ipAddress, int port, bool useRtuPacketOverTcp)
+        {
+            if (debug) StoreLogData.Instance.Store("EasyModbus library initialized for Modbus-TCPoverRTU, IPAddress: " + ipAddress + ", Port: " + port, System.DateTime.Now);
+#if (!COMMERCIAL)
+            Console.WriteLine("EasyModbus Client Library Version: " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            Console.WriteLine("Copyright (c) Stefan Rossmann Engineering Solutions");
+            Console.WriteLine();
+#endif
+            this.useRtuPacketOverTcp = useRtuPacketOverTcp;
+            this.ipAddress = ipAddress;
+            this.port = port;
+        }
+
+        /// <summary>
+        /// Constructor which determines the Master ip-address and the Master Port.
+        /// </summary>
+        /// <param name="ipAddress">IP-Address of the Master device</param>
+        /// <param name="port">Listening port of the Master device (should be 502)</param>
+        public ModbusClient(string ipAddress, int port)
 		{
 			if (debug) StoreLogData.Instance.Store("EasyModbus library initialized for Modbus-TCP, IPAddress: " + ipAddress + ", Port: "+port ,System.DateTime.Now);
 #if (!COMMERCIAL)
@@ -837,6 +859,112 @@ namespace EasyModbus
             //sp.DiscardInBuffer();
         }
 
+
+        private int DataReceivedHandlerTcp(object sender)
+        {
+            receiveActive = true;
+
+            const long ticksWait = TimeSpan.TicksPerMillisecond * 2000;//((40*10000000) / this.baudRate);
+
+
+            NetworkStream sp = (NetworkStream)sender;
+            if (bytesToRead == 0)
+            {
+                var buffer = new byte[4096];
+                while (sp.DataAvailable)
+                {
+                    sp.Read(buffer, 0, buffer.Length);
+                }
+                receiveActive = false;
+                return 0;
+            }
+            readBuffer = new byte[256];
+            int numbytes = 0;
+            int actualPositionToRead = 0;
+            DateTime dateTimeLastRead = DateTime.Now;
+
+            while(sp.DataAvailable || ((DateTime.Now.Ticks - dateTimeLastRead.Ticks) < ticksWait))
+            {
+                
+                if (sp.DataAvailable)
+                {
+                    byte[] buff = new byte[4096];
+
+                    numbytes = sp.Read(buff, 0, buff.Length);
+                    byte[] rxbytearray = new byte[numbytes];
+                    Array.Copy(buff, 0, rxbytearray, 0, numbytes);
+                    Array.Copy(rxbytearray, 0, readBuffer, actualPositionToRead, (actualPositionToRead + rxbytearray.Length) <= bytesToRead ? rxbytearray.Length : bytesToRead - actualPositionToRead);
+
+                    actualPositionToRead = actualPositionToRead + rxbytearray.Length;
+                }
+
+                if (DetectValidModbusFrame(readBuffer, readBuffer.Length)) break;
+            }
+
+            
+
+            //do
+            //{
+            //    try
+            //    {
+            //        byte[] buff = new byte[4096];
+            //        do
+            //        {
+            //            dateTimeLastRead = DateTime.Now;
+            //            numbytes = sp.Read(buff, 0, buff.Length);
+
+            //            if(numbytes <= 0)
+            //            {
+            //                System.Threading.Thread.Sleep(10);
+            //                if ((DateTime.Now.Ticks - dateTimeLastRead.Ticks) > ticksWait)
+            //                    break;
+            //            }
+
+            //            byte[] rxbytearray = new byte[numbytes];
+            //            Array.Copy(buff, 0, rxbytearray, 0, numbytes);
+
+            //            Array.Copy(rxbytearray, 0, readBuffer, actualPositionToRead, (actualPositionToRead + rxbytearray.Length) <= bytesToRead ? rxbytearray.Length : bytesToRead - actualPositionToRead);
+
+            //            actualPositionToRead = actualPositionToRead + rxbytearray.Length;
+            //        }
+            //        while(sp.DataAvailable && (DateTime.Now.Ticks - dateTimeLastRead.Ticks) < ticksWait);
+
+            //    }
+            //    catch (Exception)
+            //    {
+
+            //    }
+
+            //    if (bytesToRead <= actualPositionToRead)
+            //        break;
+
+            //    if (DetectValidModbusFrame(readBuffer, (actualPositionToRead < readBuffer.Length) ? actualPositionToRead : readBuffer.Length) | bytesToRead <= actualPositionToRead)
+            //        break;
+            //}
+            //while ((DateTime.Now.Ticks - dateTimeLastRead.Ticks) < ticksWait);
+
+            //10.000 Ticks in 1 ms
+
+            receiveData = new byte[actualPositionToRead];
+            Array.Copy(readBuffer, 0, receiveData, 0, (actualPositionToRead < readBuffer.Length) ? actualPositionToRead : readBuffer.Length);
+
+            if (debug) StoreLogData.Instance.Store("Received Serial-Over-Tcp-Data: " + BitConverter.ToString(readBuffer), System.DateTime.Now);
+            bytesToRead = 0;
+
+            dataReceived = true;
+            receiveActive = false;
+
+            //Flush tcp stream
+            var buff1 = new byte[4096];
+            while (sp.DataAvailable)
+            {
+                sp.Read(buff1, 0, buff1.Length);
+            }
+
+
+            return actualPositionToRead;
+        }
+
         public static bool DetectValidModbusFrame(byte[] readBuffer, int length)
         {
         	// minimum length 6 bytes
@@ -1341,7 +1469,7 @@ namespace EasyModbus
                 {
                     UdpClient udpClient = new UdpClient();
                     IPEndPoint endPoint = new IPEndPoint(System.Net.IPAddress.Parse(ipAddress), port);
-                    udpClient.Send(data, data.Length-2, endPoint);
+                    udpClient.Send(data, data.Length - 2, endPoint);
                     portOut = ((IPEndPoint)udpClient.Client.LocalEndPoint).Port;
                     udpClient.Client.ReceiveTimeout = 5000;
                     endPoint = new IPEndPoint(System.Net.IPAddress.Parse(ipAddress), portOut);
@@ -1349,26 +1477,87 @@ namespace EasyModbus
                 }
                 else
                 {
-                    stream.Write(data, 0, data.Length-2);
+                    if (!useRtuPacketOverTcp) //Standard ModbusTCP
+                    {
+                        stream.Write(data, 0, data.Length - 2);
+                    }
+                    else //Modbus RTU over TCP packet
+                    {
+                        bytesToRead = 5 + 2 * quantity;
+                        stream.Write(data, 6, 8); //Same packet as RTU
+                    }
+                
                     if (debug)
-                {
-                	byte [] debugData = new byte[data.Length-2];
-            		Array.Copy(data, 0, debugData, 0, data.Length-2);
-            		if (debug) StoreLogData.Instance.Store("Send ModbusTCP-Data: "+BitConverter.ToString(debugData) ,System.DateTime.Now);          		
-                }
+                    {
+                        byte[] debugData = null;
+                        if (!useRtuPacketOverTcp) //Standard ModbusTCP
+                        {
+                            debugData = new byte[data.Length - 2];
+                            Array.Copy(data, 0, debugData, 0, data.Length - 2);
+                        }
+                        else //Modbus RTU over TCP packet (excludes MBAP Header and includes CRC)
+                        {
+                            debugData = new byte[8];
+                            Array.Copy(data, 6, debugData, 0, 8);
+                        }
+            		    if (debug) StoreLogData.Instance.Store("Send ModbusTCP-Data: "+BitConverter.ToString(debugData) ,System.DateTime.Now);          		
+                    }
                     if (SendDataChanged != null)
             		{
-            			sendData = new byte[data.Length-2];
-            			Array.Copy(data, 0, sendData, 0, data.Length-2);
+                        if (!useRtuPacketOverTcp) //Standard ModbusTCP
+                        {
+                            sendData = new byte[data.Length - 2];
+                            Array.Copy(data, 0, sendData, 0, data.Length - 2);
+                        }
+                        else //Modbus RTU over TCP packet (excludes MBAP Header and includes CRC)
+                        {
+                            sendData = new byte[8];
+                            Array.Copy(data, 6, sendData, 0, 8);
+                        }
             			SendDataChanged(this);
                        
                     }
                     data = new Byte[256];
-                    int NumberOfBytes = stream.Read(data, 0, data.Length);
+                    int NumberOfBytes = 0;
+                    if (!useRtuPacketOverTcp)
+                    {
+                        NumberOfBytes = stream.Read(data, 0, data.Length); //Standard ModbusTCP
+                    }
+                    else
+                    {
+
+                        //Appends packets as they arrive from network
+
+                        NumberOfBytes = DataReceivedHandlerTcp(stream); //Waits for data from tcp stream
+
+                        byte receivedUnitIdentifier = 0xFF;
+                        if (dataReceived)
+                        {
+                            data = new byte[2100];
+                            Array.Copy(readBuffer, 0, data, 6, readBuffer.Length); //Excludes MBAP Header from packet
+                            
+                            receivedUnitIdentifier = data[6];
+                        }
+                   
+                        if (receivedUnitIdentifier != this.unitIdentifier)
+                            data = new byte[2100];
+                        else
+                            countRetries = 0;
+
+                    }
+
+                    receiveData = new byte[NumberOfBytes];
                     if (ReceiveDataChanged != null)
             		{
-            			receiveData = new byte[NumberOfBytes];
-            			Array.Copy(data, 0, receiveData, 0, NumberOfBytes);
+                        if (!useRtuPacketOverTcp) //Standard Modbus TCP
+                        {
+                            Array.Copy(data, 0, receiveData, 0, NumberOfBytes);
+                        }
+                        if (useRtuPacketOverTcp) //Modbus RTU over TCP
+                        {
+                            Array.Copy(data, 6, receiveData, 0, NumberOfBytes); //Excludes MBAP Header from packet
+                        }
+                        
                         if (debug) StoreLogData.Instance.Store("Receive ModbusTCP-Data: " + BitConverter.ToString(receiveData), System.DateTime.Now);
                         ReceiveDataChanged(this);
             		}
@@ -1394,7 +1583,7 @@ namespace EasyModbus
             	if (debug) StoreLogData.Instance.Store("ModbusException Throwed", System.DateTime.Now);
                 throw new EasyModbus.Exceptions.ModbusException("error reading");
             }
-            if (serialport != null)
+            if (serialport != null || useRtuPacketOverTcp) //Modbus RTU over TCP
             {
             crc = BitConverter.GetBytes(calculateCRC(data, (ushort)(data[8]+3), 6));
                 if ((crc[0] != data[data[8]+9] | crc[1] != data[data[8]+10])& dataReceived)

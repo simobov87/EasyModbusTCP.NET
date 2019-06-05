@@ -561,10 +561,11 @@ namespace EasyModbusServerSimulator
                 easyModbusTCPServer.SerialFlag = false;
                 label4.Text = "...Modbus-UDP Server Listening (Port " + settings.Port + ")...";
             }
-            else if (settings.ModbusTypeSelection == Settings.ModbusType.ModbusTCP)
+            else if (settings.ModbusTypeSelection == Settings.ModbusType.ModbusTCP || settings.ModbusTypeSelection == Settings.ModbusType.ModbusRTUoverTCP)
             {
                 easyModbusTCPServer.UDPFlag = false;
                 easyModbusTCPServer.SerialFlag = false;
+                easyModbusTCPServer.SerialOverTcpFlag = settings.ModbusTypeSelection == Settings.ModbusType.ModbusRTUoverTCP;
                 label4.Text = "...Modbus-TCP Server Listening (Port " + settings.Port + ")...";
             }
             else if (settings.ModbusTypeSelection == Settings.ModbusType.ModbusRTU)
