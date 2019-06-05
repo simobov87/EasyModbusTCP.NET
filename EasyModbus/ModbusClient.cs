@@ -860,7 +860,7 @@ namespace EasyModbus
         }
 
 
-        private int DataReceivedHandlerTcp(object sender)
+        private int DataReceivedHandlerSerialOverTcp(object sender)
         {
             receiveActive = true;
 
@@ -883,9 +883,10 @@ namespace EasyModbus
             int actualPositionToRead = 0;
             DateTime dateTimeLastRead = DateTime.Now;
 
+            //TODO: check data consistency
             while(sp.DataAvailable || ((DateTime.Now.Ticks - dateTimeLastRead.Ticks) < ticksWait))
             {
-                
+                //Waiting for data
                 if (sp.DataAvailable)
                 {
                     byte[] buff = new byte[4096];
@@ -898,6 +899,7 @@ namespace EasyModbus
                     actualPositionToRead = actualPositionToRead + rxbytearray.Length;
                 }
 
+                //Check modbus frame 
                 if (DetectValidModbusFrame(readBuffer, readBuffer.Length)) break;
             }
 
@@ -954,8 +956,8 @@ namespace EasyModbus
             dataReceived = true;
             receiveActive = false;
 
-            //Flush tcp stream
-            var buff1 = new byte[4096];
+            //TODO: Flush tcp stream
+            byte[] buff1 = new byte[4096];
             while (sp.DataAvailable)
             {
                 sp.Read(buff1, 0, buff1.Length);
@@ -1429,7 +1431,6 @@ namespace EasyModbus
             {
                 dataReceived = false;
                 bytesToRead = 5 + 2 * quantity;
-//                serialport.ReceivedBytesThreshold = bytesToRead;
                 serialport.Write(data, 6, 8);
                 if (debug)
                 {
@@ -1483,6 +1484,7 @@ namespace EasyModbus
                     }
                     else //Modbus RTU over TCP packet
                     {
+                        dataReceived = false;
                         bytesToRead = 5 + 2 * quantity;
                         stream.Write(data, 6, 8); //Same packet as RTU
                     }
@@ -1528,7 +1530,7 @@ namespace EasyModbus
 
                         //Appends packets as they arrive from network
 
-                        NumberOfBytes = DataReceivedHandlerTcp(stream); //Waits for data from tcp stream
+                        NumberOfBytes = DataReceivedHandlerSerialOverTcp(stream); //Waits for data from tcp stream
 
                         byte receivedUnitIdentifier = 0xFF;
                         if (dataReceived)
@@ -1737,7 +1739,7 @@ namespace EasyModbus
                     portOut = ((IPEndPoint)udpClient.Client.LocalEndPoint).Port;
                     udpClient.Client.ReceiveTimeout = 5000;
                     endPoint = new IPEndPoint(System.Net.IPAddress.Parse(ipAddress), portOut);
-                    data = udpClient.Receive(ref endPoint);
+                    data = udpClient.Receive(ref endPoint);                    
                 }
                 else
                 {
